@@ -1,10 +1,13 @@
 #!/bin/bash
 
-# Script that compares the barcodes listed in two BLAZE-generated whitelist.csv files, to run the script:
-# 1) save it to a file (e.g., compareWhitelists.sh)
-# 2) make it executable using chmod +x compareWhitelists.sh
-# 3) execute it using ./compareWhitelists.sh [~/file1.csv] [~/file2.csv] in the terminal
-# The script will generate the non_matching_barcodes.txt file containing the desired output
+# Script that compares the barcodes listed in two BLAZE-generated whitelist.csv files and returns barcodes that don't match, to run the script
+# navigate to the directory that contains the compareWhitlists.sh file
+# then execute it using ./compareWhitelists.sh [~/file1.csv] [~/file2.csv] in the terminal
+
+# The script will generate two output files :
+# 1) a text file that contains the paths that correspond to each file identifier used in the csv file (File 1 and File 2), 
+# and the number non-matching barcodes contained within those files
+# 2) a csv file that lists the sequences of the non-matching barcodes with their respective file identifiers
 
 file1="$1"
 file2="$2"
