@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script that compares the barcodes listed in two whitelist.csv files, to run the script:
+# Script that compares the barcodes listed in two BLAZE-generated whitelist.csv files, to run the script:
 # 1) save it to a file (e.g., compareWhitelists.sh)
 # 2) make it executable using chmod +x compareWhitelists.sh
 # 3) execute it using ./compareWhitelists.sh [~/file1.csv] [~/file2.csv] in the terminal
