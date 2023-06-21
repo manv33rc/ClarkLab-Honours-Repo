@@ -10,7 +10,7 @@
 main <- function() {
 
     suppressPackageStartupMessages(
-        library("Flames")
+        library("FLAMES")
     )
 
     # Define the variables that are unique to the sample-------------------------
@@ -33,8 +33,7 @@ main <- function() {
     transcriptome = "/data/gpfs/projects/punim0646/manveer/gencode.v43.transcripts.fa"
 
     # Run FLAMES
-    sce <- sc_long_pipeline(fastq=fastq, outdir=output, reference_csv=whitelist, annot=GTF, 
-        genome_fa=transcriptome, match_barcode=TRUE, MAX_DIST=2, has_UMI=TRUE, minimap2_dir=minimap2_dir)
+    sce <- sc_long_pipeline(fastq=fastq, outdir=output, reference_csv=whitelist, annot=GTF, genome_fa=transcriptome, match_barcode=TRUE, MAX_DIST=2, has_UMI=TRUE, minimap2_dir=minimap2_dir)
     message("Complete")
 }
 
