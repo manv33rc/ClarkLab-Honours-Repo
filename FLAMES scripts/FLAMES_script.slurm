@@ -24,6 +24,7 @@ module load foss/2021b r/4.2.0
 fastqFile="/data/gpfs/projects/punim0646/manveer/BLAZE_paper_fastqs/LR_sc-RNA-seq_GridION_Q20_pass.fastq.gz"
 whitelist="/data/gpfs/projects/punim0646/manveer/BLAZE_Q20_15.06/500expectedcells/whitelist.csv"
 outputDirectory="/data/gpfs/projects/punim0646/manveer/FLAMES_Q20_GridION_500cells"
+RscriptPath="/data/gpfs/projects/punim0646/manveer/Scripts/FLAMES.r"
 
 # Run FLAMES.R
-Rscript FLAMES.R ${fastqFile} ${whitelist} ${outputDirectory}
+Rscript ${RscriptPath} ${fastqFile} ${whitelist} ${outputDirectory}
