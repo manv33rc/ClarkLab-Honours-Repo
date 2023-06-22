@@ -7,44 +7,29 @@
   #install.packages("BiocManager")
 #BiocManager::install("FLAMES")
 
-main <- function() {
 
-    suppressPackageStartupMessages(
-        library("FLAMES")
-    )
+library("FLAMES")
 
 
-    # Define the variables that are unique to the sample-------------------------
-    args <- commandArgs(trailingOnly = TRUE)
-    # Check that the number of arguments parsed into the function are correct
-    if (length(args) != 3) {
-        stop("Please provide the correct number of arguments.
-        \nUSAGE: Rscript FLAMES.R [/path/to/fastq] [/path/to/whitelist.csv] [path/to/outputDirectory]")
-    }
-
-    fastqfile <- args[1]
-    whitelist <- args[2]
-    output <- args[3]
+# Define the variables that are unique to the sample-------------------------
+fastqfile <- "/data/gpfs/projects/punim0646/manveer/BLAZE_paper_fastqs/LR_sc-RNA-seq_GridION_Q20_pass.fastq.gz"
+whitelist <- "/data/gpfs/projects/punim0646/manveer/BLAZE_Q20_15.06/whitelist.csv"
+output <- "/data/gpfs/projects/punim0646/manveer/FLAMES_Q20_GridION_1000expCells"
 
 
-    # DEFINE GLOBAL VARIABLES HERE (these shouldn't change between samples)-----------
-    minimap2_path <- "~/.conda/envs/minimap2/bin/minimap2"
-    # Define reference files
-    GTF <- "/data/gpfs/projects/punim0646/manveer/gencode.v43.basic.annotation.gtf.gz"
-    transcriptome <- "/data/gpfs/projects/punim0646/manveer/gencode.v43.transcripts.fa"
-    # Enter the path for the config file
-    configPath <- "/data/gpfs/projects/punim0646/manveer/config_file_57972.json"
+# DEFINE GLOBAL VARIABLES HERE (these shouldn't change between samples)-----------
+minimap2_path <- "~/.conda/envs/minimap2/bin/minimap2"
+# Define reference files
+GTF <- "/data/gpfs/projects/punim0646/manveer/gencode.v43.basic.annotation.gtf.gz"
+transcriptome <- "/data/gpfs/projects/punim0646/manveer/gencode.v43.transcripts.fa"
+# Enter the path for the config file
+configPath <- "/data/gpfs/projects/punim0646/manveer/FLAMES_Q20_GridION_1000expCells/config.json"
 
 
 
-    # Run FLAMES-----------------------------------------------------------------
-    sce <- sc_long_pipeline(fastq = fastqfile, outdir = output, reference_csv = whitelist, annotation = GTF, 
-        genome_fa = transcriptome, match_barcode = TRUE, minimap2_dir = minimap2_path, 
-        config_file = configPath)
+# Run FLAMES-----------------------------------------------------------------
+sce <- sc_long_pipeline(fastq = fastqfile, outdir = output, reference_csv = whitelist, annotation = GTF, 
+    genome_fa = transcriptome, match_barcode = TRUE, minimap2_dir = minimap2_path, 
+    config_file = configPath)
     
-    message("Complete")
-}
-
-suppressWarnings(
-    main()
-)
+message("Complete")

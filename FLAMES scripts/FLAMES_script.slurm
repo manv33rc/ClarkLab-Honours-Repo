@@ -7,8 +7,8 @@
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-type=END
 #SBATCH --mail-user=mschauhan@student.unimelb.edu.au
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=32000
+#SBATCH --cpus-per-task=12
+#SBATCH --mem=100000
 #time in days-hours:mins:sec
 #SBATCH --time=1-00:00:00
 
@@ -21,10 +21,7 @@ echo "Conda environment initialized"
 module load foss/2021b r/4.2.0
 
 # Assign file paths
-fastqFile="/data/gpfs/projects/punim0646/manveer/BLAZE_paper_fastqs/LR_sc-RNA-seq_GridION_Q20_pass.fastq.gz"
-whitelist="/data/gpfs/projects/punim0646/manveer/BLAZE_Q20_15.06/500expectedcells/whitelist.csv"
-outputDirectory="/data/gpfs/projects/punim0646/manveer/FLAMES_Q20_GridION_500cells"
-RscriptPath="/data/gpfs/projects/punim0646/manveer/Scripts/FLAMES.r"
+FLAMESpath="/data/gpfs/projects/punim0646/manveer/Scripts/FLAMES.r"
 
-# Run FLAMES.R
-Rscript ${RscriptPath} ${fastqFile} ${whitelist} ${outputDirectory}
+# Run FLAMES.R - Make sure FLAMES.r and config.json are correct
+Rscript ${FLAMESpath}
