@@ -9,7 +9,7 @@ def extract_feature_info(featureConversionType, line):
         # Define the regex patterns if matching gene symbol to gene name
         feature_id_pattern = r'gene_id\s+"([^"]+)"'
         feature_name_pattern = r'gene_name\s+"([^"]+)"'
-    elif featureConversionType == 'trans-to-gene':
+    elif featureConversionType == 'trans.to.gene':
         # Define the regex patterns if matching transcript symbol to gene name
         feature_id_pattern = r'transcript_id\s+"([^"]+)"'
         feature_name_pattern = r'gene_name\s+"([^"]+)"'
@@ -40,25 +40,34 @@ def build_feature_map(featureConversionType, gtf_file):
 
     return feature_map
 
-def GeneSymboltoName(gtfFilePath, gene_id):
-    # Build a hashmap of gene symbol and name key-value pairs
-    gene_map = build_feature_map('gene', gtfFilePath)
-    # Retrieve the gene name based on gene ID
-    gene_name = gene_map.get(gene_id)
+def FeatureSymboltoName(feature_id, ConvType, gtfFilePath):
+    valid_ConversionTypes = ['transcript', 'gene', 'trans.to.gene']
+    if ConvType not in valid_ConversionTypes:
+        print("Error: Invalid Conversion Type \nRequires: 'transcript', 'gene' or 'trans.to.gene'")
     
-    if gene_name:
-        print(f"Gene ID: {gene_id}, Gene Name: {gene_name}")
+    # Build a hashmap of feature symbol and name key-value pairs
+    feature_map = build_feature_map(ConvType, gtfFilePath)
+    # Retrieve the gene name based on gene ID
+    feature_name = feature_map.get(feature_id)
+    
+    if feature_name:
+        if ConvType == 'transcript':
+            print(f"Transcript symbol: {feature_id}, Transcript Name: {feature_name}")
+        elif ConvType == 'gene':
+            print(f"Gene symbol: {feature_id}, Gene Name: {feature_name}")
+        elif ConvType == 'trans.to.gene':
+            print(f"Transcript symbol: {feature_id}, Gene Name: {feature_name}")
     else:
-        print(f"No matching gene found for ID: {gene_id}")
-    return gene_name
+        print(f"No matching names found for the provided feature symbol: {feature_id}")
+    return feature_name
 
-# Example usage
+# TEST FUNCTIONS
 gtf_file = '/Users/manveerchuahan/SCRIPTS/gencode.v43.chr_patch_hapl_scaff.annotation.gtf'
-# Retrieve gene name based on gene ID
 gene_id = 'ENSG00000223972.6'   # Gene Name: DDX11L1
+transcript_id = 'ENST00000641515.2'  # transcript name : OR4F5-201
 #gene_id = 'ENSG00000186092.7'   # Gene Name: OR4F5
 
-GeneSymboltoName(gtf_file, gene_id)
-# Build the gene map by processing the GTF file
-#gene_map = build_gene_map(gtf_file)
-#gene_name = gene_map.get(gene_id)
+# Retrieve desired name based on feature symbol and conversion type
+FeatureSymboltoName(gene_id, 'gene', gtf_file)
+FeatureSymboltoName(transcript_id, 'transcript', gtf_file)
+FeatureSymboltoName(transcript_id, 'trans.to.gene', gtf_file)
