@@ -40,21 +40,25 @@ def build_feature_map(featureConversionType, gtf_file):
 
     return feature_map
 
-def GeneSymboltoName():
-    gene_map = 
+def GeneSymboltoName(gtfFilePath, gene_id):
+    # Build a hashmap of gene symbol and name key-value pairs
+    gene_map = build_feature_map('gene', gtfFilePath)
+    # Retrieve the gene name based on gene ID
+    gene_name = gene_map.get(gene_id)
+    
+    if gene_name:
+        print(f"Gene ID: {gene_id}, Gene Name: {gene_name}")
+    else:
+        print(f"No matching gene found for ID: {gene_id}")
     return gene_name
+
 # Example usage
 gtf_file = '/Users/manveerchuahan/SCRIPTS/gencode.v43.chr_patch_hapl_scaff.annotation.gtf'
-
-# Build the gene map by processing the GTF file
-gene_map = build_gene_map(gtf_file)
-
 # Retrieve gene name based on gene ID
-#gene_id = 'ENSG00000223972.6'   # Gene Name: DDX11L1
-gene_id = 'ENSG00000186092.7'   # Gene Name: OR4F5
-gene_name = gene_map.get(gene_id)
+gene_id = 'ENSG00000223972.6'   # Gene Name: DDX11L1
+#gene_id = 'ENSG00000186092.7'   # Gene Name: OR4F5
 
-if gene_name:
-    print(f"Gene ID: {gene_id}, Gene Name: {gene_name}")
-else:
-    print(f"No matching gene found for ID: {gene_id}")
+GeneSymboltoName(gtf_file, gene_id)
+# Build the gene map by processing the GTF file
+#gene_map = build_gene_map(gtf_file)
+#gene_name = gene_map.get(gene_id)
