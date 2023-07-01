@@ -2,15 +2,15 @@ import re
 
 # Function to extract feature information based on conversion type
 def extract_feature_info(featureConversionType, line):
-    if featureConversionType == 'transcript':
+    if featureConversionType == 't.to.tName':
         # Define the regex patterns if matching transcript id to transcript name
         feature_id_pattern = r'transcript_id\s+"([^"]+)"'
         feature_name_pattern = r'transcript_name\s+"([^"]+)"'
-    elif featureConversionType == 'gene':
+    elif featureConversionType == 'g.to.gName':
         # Define the regex patterns if matching gene id to gene name
         feature_id_pattern = r'gene_id\s+"([^"]+)"'
         feature_name_pattern = r'gene_name\s+"([^"]+)"'
-    elif featureConversionType == 'trans.to.gene':
+    elif featureConversionType == 't.to.gName':
         # Define the regex patterns if matching transcript id to gene name
         feature_id_pattern = r'transcript_id\s+"([^"]+)"'
         feature_name_pattern = r'gene_name\s+"([^"]+)"'
@@ -27,7 +27,6 @@ def extract_feature_info(featureConversionType, line):
     else:
         return None, None
 
-
 # Function to build a hashmap of feature symbol and name key-value pairs
 def build_feature_map(featureConversionType, gtf_file):
     feature_map = {}  # Initialize the hashmap to store feature ID-name key-value pairs
@@ -42,29 +41,72 @@ def build_feature_map(featureConversionType, gtf_file):
 
     return feature_map
 
-# Function to retrieve the feature name based on gene ID or transcript ID
-def FeatureIDtoSymbol(feature_id, ConvType, gtfFilePath, novelIsoTitle = False):
-    # Check if conversion type parameter is in correct format
-    valid_ConversionTypes = ['transcript', 'gene', 'trans.to.gene']
-    if ConvType not in valid_ConversionTypes:
-        print("Error: Invalid Conversion Type \nRequires: 'transcript', 'gene' or 'trans.to.gene'")
-    
-    # Check if feature_id is a novel isoform
-    if '-' in feature_id and novelIsoTitle and ConvType in ['transcript', 'trans.to.gene']:
+# Function that checks whether the feature_id argument is a novel isoform, then generates appropriate output
+def CheckNovelIsoform(feature_id, ConvType, gtfFilePath, novelIsoTitle):
+    # This if statement checks whether the conversion type is transcript id to gene symbol, 
+    # in which case it returns the feature_name containing the gene symbol (this should happen regardless of novelIsoTitle value)
+    if '-' in feature_id and ConvType == 't.to.gName':
         novel_isoform_id = feature_id
-        feature_id = feature_id.split('-')[0]  # Extract the substring before the first hyphen (the novel isoform's gene)
+        # Change the feature_id to gene id by extracting the substring before the first hyphen (for generating hashmap)
+        feature_id = feature_id.split('-')[0]  
         # Build hashmap of gene symbol and name pairs and find the novel isoform's corresponding gene name
-        feature_map = build_feature_map('gene', gtfFilePath)
+        feature_map = build_feature_map('g.to.gName', gtfFilePath)
         feature_name = feature_map.get(feature_id)
         
+        if feature_name:
+            print(f"Transcript ID: {novel_isoform_id}, Gene Symbol: {feature_name}")
+            return feature_name
+        else:
+            print(f"No matching genes found for novel Isoform ID: {feature_id}")
+            return novel_isoform_id
+    
+    # This elif statement will return the novel isoform id as it is not a gene id, its a transcript id
+    # It should return the same thing regardless of novelIsoTitle
+    elif '-' in feature_id and ConvType == 'g.to.gName':
+        print(f"{feature_id} is not a gene, did you mean ConvType = 't.to.gName?")
+        return feature_id
+    
+    # Then novelIsoformTitle is set to true, check if feature_id is a novel isoform and return appropriate strings
+    elif '-' in feature_id and ConvType == 't.to.tName':
+        
+        # If you don't want to generate the full isoform title, just return the full novel transcript id
+        if novelIsoTitle == False:
+            print(f"Novel Isoform detected: {feature_id}")
+            return feature_id
+        
+        # The following code in this elif statement assumes novelIsoTitle is set to True
+        novel_isoform_id = feature_id
+        # Change the feature_id to gene id by extracting the substring before the first hyphen (for generating hashmap)
+        feature_id = feature_id.split('-')[0]  
+        # Build hashmap of gene symbol and name pairs and find the novel isoform's corresponding gene name
+        feature_map = build_feature_map('g.to.gName', gtfFilePath)
+        feature_name = feature_map.get(feature_id)
+        
+        # If novelIsoTitle argument is set to true, return the full Novel Isoform title
         if feature_name:
             fullIsoTitle = f"Novel {feature_name} Isoform \n({novel_isoform_id})"
             print(fullIsoTitle)
             return fullIsoTitle
-        else:
-            print(f"No matching genes found for novel Isoform ID: {feature_id}")
-            return novel_isoform_id
+    
+    # else return a boolean false value
+    else:
+        #print("Feature ID was not detected as a novel isoform")
+        return 'No novel isoform detected'
+        
+# Main function that retrieve the desired corresponding feature name to the provided gene/transcript ID
+def FeatureIDtoSymbol(feature_id, ConvType, gtfFilePath, novelIsoTitle = False):
+    # Check if conversion type parameter is in correct format
+    valid_ConversionTypes = ['t.to.tName', 'g.to.gName', 't.to.gName']
+    if ConvType not in valid_ConversionTypes:
+        print("Error: Invalid Conversion Type \nRequires: 't.to.tName', 'g.to.gName' or 't.to.gName'")
+        exit()
+    
+    novel_isoform_output = CheckNovelIsoform(feature_id, ConvType, gtfFilePath, novelIsoTitle)
+    # Check if feature_id is a novel mrna isoform, and return proper outputs
+    if novel_isoform_output != 'No novel isoform detected' :
+        return novel_isoform_output
 
+    # This else statement is run if the feature_id wasn't detected as a novel isoform
     else:
         # Build a hashmap of feature symbol and name key-value pairs
         feature_map = build_feature_map(ConvType, gtfFilePath)
@@ -72,25 +114,44 @@ def FeatureIDtoSymbol(feature_id, ConvType, gtfFilePath, novelIsoTitle = False):
         feature_name = feature_map.get(feature_id)
     
         if feature_name:
-            if ConvType == 'transcript':
+            if ConvType == 't.to.tName':
                 print(f"Transcript ID: {feature_id}, Transcript Symbol: {feature_name}")
-            elif ConvType == 'gene':
+            elif ConvType == 'g.to.gName':
                 print(f"Gene ID: {feature_id}, Gene Symbol: {feature_name}")
-            elif ConvType == 'trans.to.gene':
+            elif ConvType == 't.to.gName':
                 print(f"Transcript ID: {feature_id}, Gene Symbol: {feature_name}")
             return feature_name
         else:
             print(f"No matching names found for the provided feature ID: {feature_id}")
             return feature_id
 
-# TEST FUNCTIONS
-gtf_file = '/Users/manveerchuahan/SCRIPTS/gencode.v43.chr_patch_hapl_scaff.annotation.gtf'
-gene_id = 'ENSG00000104435.14'   # Gene Name: DDX11L1
-transcript_id = 'ENSG00000104435.14-79611117-79665011-1'  # transcript name : OR4F5-201
-#gene_id = 'ENSG00000186092.7'   # Gene Name: OR4F5
+def TestScript():
+    gtf_file = '/data/gpfs/projects/punim0646/manveer/gencode.v43.chr_patch_hapl_scaff.annotation.gtf'
+    gene_id = 'ENSG00000104435.14'   # Gene Name: DDX11L1
+    transcript_id = 'ENSG00000104435.14-79611117-79665011-1'
+    transcript_id2 = 'ENST00000641515.2' # transcript name : OR4F5-201
+    
+    print('\n')
+    # Retrieve desired name based on feature symbol and conversion type
+    print(f"return value: {FeatureIDtoSymbol(gene_id, 'g.to.gName', gtf_file, novelIsoTitle=True)} \nExpected output: STMN2\n")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id, 'g.to.gName', gtf_file, novelIsoTitle=True)} \nExpected output: novel trans ID\n")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id, 't.to.tName', gtf_file, novelIsoTitle=True)} \nExpected output: novel trans ID title\n")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id, 't.to.gName', gtf_file, novelIsoTitle=True)} \nExpected output: STMN2\n")
 
-# Retrieve desired name based on feature symbol and conversion type
-FeatureIDtoSymbol(gene_id, 'gene', gtf_file, novelIsoTitle=True)
-FeatureIDtoSymbol(transcript_id, 'gene', gtf_file, novelIsoTitle=True)
-FeatureIDtoSymbol(transcript_id, 'transcript', gtf_file, novelIsoTitle=True)
-FeatureIDtoSymbol(transcript_id, 'trans.to.gene', gtf_file, novelIsoTitle=True)
+    print("Transcript 2 : OR4F5-201--------")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id2, 'g.to.gName', gtf_file, novelIsoTitle=True)} \nExpected output: transcript2 ID\n")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id2, 't.to.tName', gtf_file, novelIsoTitle=True)} \nExpected output: OR4F5-201\n")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id2, 't.to.gName', gtf_file, novelIsoTitle=True)} \nExpected output: OR4F5\n")
+
+    print('\nnovelIsoTitle = False')
+    print(f"return value: {FeatureIDtoSymbol(gene_id, 'g.to.gName', gtf_file)} \nExpected output: STMN2\n")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id, 'g.to.gName', gtf_file)} \nExpected output: Novel trans ID\n")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id, 't.to.tName', gtf_file)} \nExpected output: Novel trans ID\n")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id, 't.to.gName', gtf_file)} \nExpected output: STMN2\n")
+
+    print("Transcript 2 : OR4F5-201--------")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id2, 'g.to.gName', gtf_file)} \nExpected output: transcript2 ID\n")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id2, 't.to.tName', gtf_file)} \nExpected output: OR4F5-201\n")
+    print(f"return value: {FeatureIDtoSymbol(transcript_id2, 't.to.gName', gtf_file)} \nExpected output: OR4F5\n")
+
+TestScript()
