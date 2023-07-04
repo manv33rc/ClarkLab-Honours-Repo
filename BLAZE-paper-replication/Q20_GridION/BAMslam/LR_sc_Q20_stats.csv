@@ -1,0 +1,12 @@
+Sample,LR_sc_Q20
+Number of reads representing full-length transcripts,666891
+Out of total number of reads,2687952
+Median alignment length of primary alignments,784
+Percentage of reads representing full-length transcripts,24.8103760781443
+Median coverage fraction of transcripts (primary alignments),0.473283248829167
+Median accuracy of primary alignments,97.9036827195468
+Number of reads with no secondary alignments,642476
+Percentage of reads with no secondary alignments,23.9020637273285
+Number of unique transcripts identified,107204
+Median coverage fraction of all unique transcripts,0.307298380552323
+Median length of all unique transcripts identified,1911
