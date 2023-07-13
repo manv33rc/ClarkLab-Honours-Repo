@@ -5,12 +5,16 @@ library(DoubletFinder)
 library(gridExtra)
 library(grid)
 
+set.seed(4242)
+
 # Initialize the variables we will be using
 output_prefix = "q20_Day25"
 matrixFilePath = "/data/gpfs/projects/punim0646/manveer/Scripts/scRNAseq-Analysis-pipeline/filt_q20_Day25_transcript_count.csv"
 feature_type = "Isoform"
-#feature_type = "Gene"
 
+#feature_type = "Gene"
+#matrixFilePath = "/data/gpfs/projects/punim0646/manveer/CELLRANGER_counts/sr_day25_cortdiff/outs/filtered_feature_bc_matrix.h5"
+#matrixFilePath = "/data/gpfs/projects/punim0646/manveer/CELLRANGER_counts/sr_day55_cortdiff/outs/filtered_feature_bc_matrix.h5"
 min.features = 200
 max.features = 999999999
 min.counts = 400
@@ -33,9 +37,8 @@ if (tolower(feature_type) == "isoform" | tolower(feature_type) == "isoforms") {
   count_matrix <- read.csv(filt_trans_counts, row.names = 1)
 } else if (tolower(feature_type) == "gene" | tolower(feature_type) == "genes") {
   ## Read in the cellRanger .h5 count matrix file
-  cellranger.sparse.m <- Read10X_h5(filename = matrixFilePath)
-  str(cellranger.sparse.m)
-  #count_matrix <- cellranger.sparse.m$'Gene Expression'
+  count_matrix <- Read10X_h5(filename = matrixFilePath, use.names = TRUE,
+                                    unique.features = TRUE)
 }
 
 ### Initialize a Seurat object with raw (non-normalized) data ----
@@ -75,7 +78,7 @@ table1 <- rbind(table1, data.frame("Cells"=dim(seurat.obj)[2],
                                    row.names = paste0('min features > 0', min.features),check.names = FALSE))
 
 association.plt <- FeatureScatter(seurat.obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm") + labs(title = "Association between unique features and number of reads per cell")
 #VlnPlot(seurat.obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 #vln1 <- VlnPlot(seurat.obj, features = c("nFeature_RNA")) + labs(title = "Unique Features per Cell\nAfter Removing Unwanted Cells")
 #vln2 <- VlnPlot(seurat.obj, features = c("nCount_RNA")) + labs(title = "RNA Molecules per Cell\nAfter Filtering")
@@ -142,14 +145,18 @@ seurat.obj <- FindNeighbors(seurat.obj, dims = 1:npc)
 # the resolution sets the granularity of downstream clustering. 
 # Settings are recommended between 0.4-1.2, but may need to be increased for larger datasets
 
-seurat.obj <- FindClusters(seurat.obj, resolution = c(0.5, 0.7, 0.9, 1.1, 1.3))
+seurat.obj <- FindClusters(seurat.obj, resolution = c(0.3, 0.5, 0.7, 0.9, 1.1, cluster_resolution))
 
 # save each plot to review in the final pdf
-cluster_resolution.figs[[1]] <- DimPlot(seurat.obj, group.by = "RNA_snn_res.0.5", label = TRUE)
-cluster_resolution.figs[[2]] <- DimPlot(seurat.obj, group.by = "RNA_snn_res.0.7", label = TRUE)
-cluster_resolution.figs[[3]] <- DimPlot(seurat.obj, group.by = "RNA_snn_res.0.9", label = TRUE)
-cluster_resolution.figs[[4]] <- DimPlot(seurat.obj, group.by = "RNA_snn_res.1.1", label = TRUE)
-cluster_resolution.figs[[5]] <- DimPlot(seurat.obj, group.by = "RNA_snn_res.1.3", label = TRUE)
+cluster_resolution.figs[[1]] <- DimPlot(seurat.obj, group.by = "RNA_snn_res.0.3", label = TRUE)
+cluster_resolution.figs[[2]] <- DimPlot(seurat.obj, group.by = "RNA_snn_res.0.5", label = TRUE)
+cluster_resolution.figs[[3]] <- DimPlot(seurat.obj, group.by = "RNA_snn_res.0.7", label = TRUE)
+cluster_resolution.figs[[4]] <- DimPlot(seurat.obj, group.by = "RNA_snn_res.0.9", label = TRUE)
+cluster_resolution.figs[[5]] <- DimPlot(seurat.obj, group.by = "RNA_snn_res.1.1", label = TRUE)
+desired_res_colTitle <- paste0("RNA_snn_res.", cluster_resolution)
+cluster_resolution.figs[[6]] <- DimPlot(seurat.obj, group.by = desired_res_colTitle, label = TRUE) + 
+  labs(title = paste0("Desired cluster resolution : ", cluster_resolution))
+
 
 # Make sure we've set the correct cluster identities based on our desired cluster_resolution
 desired_resolution <- paste0("RNA_snn_res.", cluster_resolution)
@@ -206,9 +213,12 @@ doublets.umap <- DimPlot(seurat.obj, reduction = 'umap', group.by = "DF.classifi
 seurat.obj <- subset(seurat.obj, subset = DF.classifications == 'Singlet')
 
 ### Generate QC Violin Plots for each cluster----
-vln1 <- VlnPlot(seurat.obj, features = c("nFeature_RNA")) + labs(title = "Unique Features per Cell\nAfter Removing Unwanted Cells")
-vln2 <- VlnPlot(seurat.obj, features = c("nCount_RNA")) + labs(title = "RNA Molecules per Cell\nAfter Filtering")
-vln3 <- VlnPlot(seurat.obj, features = c("percent.mt")) + labs(title = "Mitochondrial Content (%)\nAfter Removing Unwanted Cells")
+vln1 <- VlnPlot(seurat.obj, features = c("nFeature_RNA")) + labs(title = "Unique Features per Cell\nAfter Removing Unwanted Cells") +
+  geom_hline(yintercept = median(seurat.obj$nFeature_RNA), linetype = 'dashed')
+vln2 <- VlnPlot(seurat.obj, features = c("nCount_RNA")) + labs(title = "RNA Molecules per Cell\nAfter Filtering") +
+  geom_hline(yintercept = median(seurat.obj$nCount_RNA), linetype = 'dashed')
+vln3 <- VlnPlot(seurat.obj, features = c("percent.mt")) + labs(title = "Mitochondrial Content (%)\nAfter Removing Unwanted Cells") +
+  geom_hline(yintercept = median(seurat.obj@meta.data[["percent.mt"]]), linetype = 'dashed')
 #association.plt <- FeatureScatter(seurat.obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
 #  geom_smooth(method = "lm")
 
@@ -236,6 +246,13 @@ filtered.summary <- rbind("Sample ID" = output_prefix,
                          
 
 ### Compile and arrange all the figures that were generated ----
+baseUMAPplot
+elbow.plt
+filtered.summary
+association.plt
+vln1 | vln2 | vln3
+doublets.umap
+statsDoublets
 
 final.layout.alt <- grid.arrange(tableGrob(filtered.summary), baseUMAPplot,
                                elbow.plt, variable.feature.plot,
@@ -246,14 +263,37 @@ final.layout.alt <- grid.arrange(tableGrob(filtered.summary), baseUMAPplot,
                                top = textGrob(paste0("SCRIPT 2 (QC) SUMMARY (", output_prefix,")\n"),
                                               gp = gpar(fontsize = 20)))
 
-pdf.figs.title <- paste0(output_prefix, "-QC-figures-script2-alt.pdf")
+pdf.figs.title <- paste0(output_prefix, "-QC-summary-script2.pdf")
 ggsave(pdf.figs.title, final.layout.alt, width = 20, height = 30)
 
 cluster.res.layout <- grid.arrange(cluster_resolution.figs[[1]], cluster_resolution.figs[[2]],
                                    cluster_resolution.figs[[3]], cluster_resolution.figs[[4]], 
-                                   cluster_resolution.figs[[5]], tableGrob(filtered.summary), 
-                                   nrow = 2, ncol = 3,
-                                   top=textGrob(paste0("SCRIPT 2 (QC) - CLUSTER RESOLUTION FIGURES"),
+                                   cluster_resolution.figs[[5]], cluster_resolution.figs[[6]], 
+                                   tableGrob(filtered.summary),
+                                   nrow = 3, ncol = 3,
+                                   top=textGrob(paste0("SCRIPT 2 (QC) - ", output_prefix, " CLUSTER RESOLUTION FIGURES"),
                                                 gp = gpar(fontsize = 15)))
 res.figs.title <- paste0(output_prefix, "-cluster-res-figures-script2.pdf")
-ggsave(res.figs.title, cluster.res.layout, width = 15, height = 10)
+ggsave(res.figs.title, cluster.res.layout, width = 20, height = 18)
+
+
+### Compile UMAP plots showing the expression of the top10 most variable features----
+FoI_figures <- list()
+converted_top10
+for (feature in top10) {
+  feature_name <- converted_top10[feature]
+  FoI_figures[[feature]] <- FeaturePlot(seurat.obj, reduction = 'umap',
+                                        features = feature,
+                                        order = TRUE) + ggmin::theme_powerpoint() + labs(title = feature_name)
+}
+grid.layout.FoI <- grid.arrange(grobs = FoI_figures, nrow = 2, ncol = 5,
+                                top=textGrob(paste0("Expression Levels of Top 10 Most Variable Features (", output_prefix,")\n"),
+                                gp = gpar(fontsize = 12, fontface = "bold")))
+figs.title <- paste0(output_prefix, "-top10-features-script2.pdf")
+ggsave(figs.title, grid.layout.FoI, width = 22, height = 10)
+
+
+### Export the processed seurat object for use in further scripts
+rdsFilename <- paste0(output_prefix,"-QCed.rds")
+rdsFilename
+saveRDS(seurat.obj, file = rdsFilename)
