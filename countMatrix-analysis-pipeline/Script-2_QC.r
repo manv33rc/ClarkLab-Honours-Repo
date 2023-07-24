@@ -4,24 +4,27 @@ library(reticulate)
 library(DoubletFinder)
 library(gridExtra)
 library(grid)
-
+library(outliers)
 set.seed(4242)
 
-# Initialize the variables we will be using
-output_prefix = "q20_Day25"
-matrixFilePath = "/data/gpfs/projects/punim0646/manveer/Scripts/scRNAseq-Analysis-pipeline/filt_q20_Day25_transcript_count.csv"
-feature_type = "Isoform"
+# Initialize the variables we will be using-----
+output_prefix = "sr_Day55_FIXED"
 
-#feature_type = "Gene"
+#matrixFilePath = "/data/gpfs/projects/punim0646/manveer/Scripts/scRNAseq-Analysis-pipeline/filt_q20_Day25_transcript_count.csv"
+#geneMatrixFilePath = "/data/gpfs/projects/punim0646/manveer/Scripts/scRNAseq-Analysis-pipeline/filt_q20_Day25_gene_count.csv"
+#feature_type = "Isoform"
+
+feature_type = "Gene"
 #matrixFilePath = "/data/gpfs/projects/punim0646/manveer/CELLRANGER_counts/sr_day25_cortdiff/outs/filtered_feature_bc_matrix.h5"
-#matrixFilePath = "/data/gpfs/projects/punim0646/manveer/CELLRANGER_counts/sr_day55_cortdiff/outs/filtered_feature_bc_matrix.h5"
-min.features = 200
+matrixFilePath = "/data/gpfs/projects/punim0646/manveer/CELLRANGER_counts/sr_day55_cortdiff/outs/filtered_feature_bc_matrix.h5"
+
+min.features = 3500
 max.features = 999999999
-min.counts = 400
+min.counts = 500
 max.counts = 100000
 MT_threshold = 10
-npc = 10
-cluster_resolution = 0.9
+npc = 14
+cluster_resolution = 0.8
 
 table1 = data.frame()
 cluster_resolution.figs = list()
@@ -35,11 +38,17 @@ if (tolower(feature_type) == "isoform" | tolower(feature_type) == "isoforms") {
   ## Read in the FLAMES transcript count csv file
   filt_trans_counts = matrixFilePath
   count_matrix <- read.csv(filt_trans_counts, row.names = 1)
+  
+  ## Read in the gene level count matrix (generated with BLAZE paper's FLAMES isoform count matrix converter)
+  count_matrix.geneLevel <- read.csv(geneMatrixFilePath, row.names = 1)
+  # Remove the first column of the data-frame containing the transcripts of each gene
+  count_matrix.geneLevel <- count_matrix.geneLevel[, -1]
 } else if (tolower(feature_type) == "gene" | tolower(feature_type) == "genes") {
   ## Read in the cellRanger .h5 count matrix file
   count_matrix <- Read10X_h5(filename = matrixFilePath, use.names = TRUE,
                                     unique.features = TRUE)
 }
+
 
 ### Initialize a Seurat object with raw (non-normalized) data ----
 
@@ -47,8 +56,12 @@ if (tolower(feature_type) == "isoform" | tolower(feature_type) == "isoforms") {
 # and cells that contain >= 1 feature into our seurat object
 seurat.obj <- CreateSeuratObject(counts = count_matrix, project = output_prefix,
                                  min.cells = 3, min.features = 1)
-seurat.obj
-#13600 features across 811 samples within 1 assay 
+# Create a second seurat object with gene level counts if the count matrix we're 
+# working with is at the isoform level
+if (tolower(feature_type) == "isoform" | tolower(feature_type) == "isoforms") {
+  seurat.obj.GeneLvl <- CreateSeuratObject(counts = count_matrix.geneLevel, project = output_prefix,
+                                           min.cells = 3, min.features = 1)
+}
 
 # Update table1 with number of the initial total number of cells and features
 initial_cells = dim(seurat.obj)[2]
@@ -63,26 +76,42 @@ seurat.obj[["percent.mt"]] <- PercentageFeatureSet(seurat.obj, pattern = "^MT-")
 median.mito.content.before = median(seurat.obj@meta.data[["percent.mt"]])
 
 VlnPlot(seurat.obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
-FeatureScatter(seurat.obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
+association.plt.before <- FeatureScatter(seurat.obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
   geom_smooth(method = "lm")
+vln1 <- VlnPlot(seurat.obj, features = c("nFeature_RNA")) + labs(title = "Unique Features per Cell\nBefore Filtering")
+vln2 <- VlnPlot(seurat.obj, features = c("nCount_RNA")) + labs(title = "RNA Molecules per Cell\nBefore Filtering")
+vln3 <- VlnPlot(seurat.obj, features = c("percent.mt")) + labs(title = "Mitochondrial Content (%)\nBefore Filtering")
+
+vlnplots.before.QC <- list(vln1, vln2, vln3)
 
 ## Next override our seurat object, removing unwanted cells. You can modify these parameters in the function
 seurat.obj <- subset(seurat.obj, subset = nFeature_RNA > min.features & nFeature_RNA < max.features 
                      & percent.mt < MT_threshold & nCount_RNA < max.counts & nCount_RNA > min.counts)
-FeatureScatter(seurat.obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
-  geom_smooth(method = "lm")
 
 # Add the new number of cells and median features per cell to table1
-table1 <- rbind(table1, data.frame("Cells"=dim(seurat.obj)[2],
-                                   "Median features per cell"=median(seurat.obj$nFeature_RNA), 
-                                   row.names = paste0('min features > 0', min.features),check.names = FALSE))
+table1 <- rbind(table1, data.frame("Cells" = dim(seurat.obj)[2],
+                                   "Median features per cell" = median(seurat.obj$nFeature_RNA), 
+                                   row.names = paste0('min features > 0', min.features), check.names = FALSE))
 
-association.plt <- FeatureScatter(seurat.obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
-  geom_smooth(method = "lm") + labs(title = "Association between unique features and number of reads per cell")
-#VlnPlot(seurat.obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
-#vln1 <- VlnPlot(seurat.obj, features = c("nFeature_RNA")) + labs(title = "Unique Features per Cell\nAfter Removing Unwanted Cells")
-#vln2 <- VlnPlot(seurat.obj, features = c("nCount_RNA")) + labs(title = "RNA Molecules per Cell\nAfter Filtering")
-#vln3 <- VlnPlot(seurat.obj, features = c("percent.mt")) + labs(title = "Mitochondrial Content (%)\nAfter Removing Unwanted Cells")
+association.plt.after <- FeatureScatter(seurat.obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
+  geom_smooth(method = "lm") + labs(title = "Association between unique features \nand number of reads per cell")
+VlnPlot(seurat.obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+vln1 <- VlnPlot(seurat.obj, features = c("nFeature_RNA")) + labs(title = "Unique Features per Cell\nAfter Removing Unwanted Cells")
+vln2 <- VlnPlot(seurat.obj, features = c("nCount_RNA")) + labs(title = "RNA Molecules per Cell\nAfter Filtering")
+vln3 <- VlnPlot(seurat.obj, features = c("percent.mt")) + labs(title = "Mitochondrial Content (%)\nAfter Removing Unwanted Cells")
+
+vlnplots.after.QC <- list(vln1, vln2, vln3)
+
+association.plt.before | association.plt.after
+
+filter.figs.layout <- grid.arrange( vlnplots.before.QC[[1]], vlnplots.before.QC[[2]], vlnplots.before.QC[[3]],
+                                    vlnplots.after.QC[[1]], vlnplots.after.QC[[2]], vlnplots.after.QC[[3]],
+                                    association.plt.before, association.plt.after, tableGrob(table1),
+                                   nrow = 3, ncol = 3,
+                                   top=textGrob(paste0("SCRIPT 2 (QC) - ", output_prefix, " FILTERING INFORMATION"),
+                                                gp = gpar(fontsize = 15)))
+res.figs.title <- paste0(output_prefix, "-more-filtering-figures-script2.pdf")
+ggsave(res.figs.title, filter.figs.layout, width = 20, height = 18)
 
 ### Now you have removed unwanted cells, it is time to normalize the data. ----
 ### By default : A global-scaling normalization method "LogNormalize" is  used
@@ -166,9 +195,6 @@ Idents(seurat.obj) <- desired_resolution
 ### Move on the non-linear dimensionality reduction (UMAP)----
 seurat.obj <- RunUMAP(seurat.obj, dims = 1:npc)
 
-
-### filter out doublets (remember  to modify doublet rate if samples have variable target cells)
-
 ### Next move on to Doublet detection with DoubletFinder -----
 ## First identify the most optimum pK value (no-ground truth strategy)
 sweep.res.list <- paramSweep_v3(seurat.obj, PCs = 1:20, sct = FALSE)
@@ -212,6 +238,7 @@ doublets.umap <- DimPlot(seurat.obj, reduction = 'umap', group.by = "DF.classifi
 # Only keep the cells that are considered singlets - discard the doublets
 seurat.obj <- subset(seurat.obj, subset = DF.classifications == 'Singlet')
 
+
 ### Generate QC Violin Plots for each cluster----
 vln1 <- VlnPlot(seurat.obj, features = c("nFeature_RNA")) + labs(title = "Unique Features per Cell\nAfter Removing Unwanted Cells") +
   geom_hline(yintercept = median(seurat.obj$nFeature_RNA), linetype = 'dashed')
@@ -249,15 +276,16 @@ filtered.summary <- rbind("Sample ID" = output_prefix,
 baseUMAPplot
 elbow.plt
 filtered.summary
-association.plt
 vln1 | vln2 | vln3
 doublets.umap
 statsDoublets
+variable.feature.plot
+#variable.feature.plot.GeneLvl
 
 final.layout.alt <- grid.arrange(tableGrob(filtered.summary), baseUMAPplot,
                                elbow.plt, variable.feature.plot,
                                vln1, vln2,
-                               vln3, association.plt,
+                               vln3, association.plt.after,
                                doublets.umap, tableGrob(statsDoublets),
                                nrow = 5, ncol = 2,
                                top = textGrob(paste0("SCRIPT 2 (QC) SUMMARY (", output_prefix,")\n"),
@@ -292,8 +320,93 @@ grid.layout.FoI <- grid.arrange(grobs = FoI_figures, nrow = 2, ncol = 5,
 figs.title <- paste0(output_prefix, "-top10-features-script2.pdf")
 ggsave(figs.title, grid.layout.FoI, width = 22, height = 10)
 
+### If analysing long read data, perform the same processing steps for the gene level seurat obj---------
+if (tolower(feature_type) == "isoform" | tolower(feature_type) == "isoforms") {
+  seurat.obj.GeneLvl[["percent.mt"]] <- PercentageFeatureSet(seurat.obj.GeneLvl, pattern = "^MT-")
+  
+  # Make sure that the barcodes that remain match those in the isoform level seurat object
+  # Such that the cells removed at the isoform level are also removed in the gene level object
+  isoformLvl.barcodes <- seurat.obj$orig.ident
+  seurat.obj.GeneLvl <- subset(seurat.obj.GeneLvl, cells = row.names(seurat.obj@meta.data))
+
+  #seurat.obj.GeneLvl <- subset(seurat.obj.GeneLvl, subset = nFeature_RNA > min.features & nFeature_RNA < max.features 
+  #                             & percent.mt < MT_threshold & nCount_RNA < max.counts & nCount_RNA > min.counts)
+  
+  seurat.obj.GeneLvl <- FindVariableFeatures(seurat.obj.GeneLvl, 
+                                             selection.method = 'vst',
+                                             nfeatures = 2000)
+  top10.geneLvl <- head(VariableFeatures(seurat.obj.GeneLvl), 10)
+  # Convert gene IDs in top10 to their respective symbols using FeatureIDtoSymbol() function
+  converted_top10.Genelvl <- sapply(top10.geneLvl, function(feature_id) {
+    FeatureIDtoSymbol(feature_id, ConvType = 'g.to.gName', gtfFilePath = gtfFilePath)
+  })
+  
+  variable.feature.plot.GeneLvl <- VariableFeaturePlot(seurat.obj.GeneLvl) +
+    labs(title = "Top 2000 Variable Genes across Cells")
+  variable.feature.plot.GeneLvl <- LabelPoints(plot = variable.feature.plot.GeneLvl, 
+                                               points = top10.geneLvl, labels = converted_top10.Genelvl,
+                                               repel = TRUE, xnudge = 0, ynudge = 0)
+  variable.feature.plot.GeneLvl
+  
+  all.features <- rownames(seurat.obj.GeneLvl)
+  seurat.obj.GeneLvl <- ScaleData(seurat.obj.GeneLvl, features = all.features)
+  seurat.obj.GeneLvl <- RunPCA(seurat.obj.GeneLvl, features = VariableFeatures(object = seurat.obj.GeneLvl))
+  elbow.plt.GeneLvl <- ElbowPlot(seurat.obj.GeneLvl) + labs(title = "Gene Level Elbow Plot")
+  
+  elbow.plt.GeneLvl
+  
+  seurat.obj.GeneLvl <- FindNeighbors(seurat.obj.GeneLvl, dims = 1:npc)
+  seurat.obj.GeneLvl <- FindClusters(seurat.obj.GeneLvl, resolution = cluster_resolution)
+  cluster_resolution.fig.GeneLvl <- DimPlot(seurat.obj.GeneLvl, group.by = desired_res_colTitle, label = TRUE) + 
+    labs(title = paste0("Desired cluster resolution (GENE LVL): ", cluster_resolution))
+  
+  seurat.obj.GeneLvl <- RunUMAP(seurat.obj.GeneLvl, dims = 1:npc)
+  
+  ## Compile UMAP plots showing the expression of the top10 most variable genes----
+  GoI_figures <- list()
+  converted_top10.Genelvl
+  for (feature in top10.geneLvl) {
+    feature_name <- converted_top10.Genelvl[feature]
+    GoI_figures[[feature]] <- FeaturePlot(seurat.obj.GeneLvl, reduction = 'umap',
+                                          features = feature,
+                                          order = TRUE) + ggmin::theme_powerpoint() + labs(title = feature_name)
+  }
+  grid.layout.GoI <- grid.arrange(grobs = GoI_figures, nrow = 2, ncol = 5,
+                                  top=textGrob(paste0("Expression Levels of Top 10 Most Variable Genes (", output_prefix,")\n"),
+                                               gp = gpar(fontsize = 12, fontface = "bold")))
+  figs.title <- paste0(output_prefix, "-top10-genes-script2.pdf")
+  ggsave(figs.title, grid.layout.GoI, width = 22, height = 10)
+  
+  # Generate a UMAP plot to look at clustering for gene level information
+  umap_title <- paste0(output_prefix, " Sample (Gene Level)\nResolution : ", cluster_resolution, ", Dimensions: ", npc)
+  baseUMAP.geneLvl <- DimPlot(seurat.obj.GeneLvl, reduction = "umap", label = TRUE, ) + 
+    labs(color = "cluster \n(from PCA)", 
+         title = umap_title) +
+    ggmin::theme_powerpoint()
+  
+  baseUMAP.geneLvl
+  elbow.plt.GeneLvl
+  cluster_resolution.fig.GeneLvl
+  variable.feature.plot.GeneLvl
+  
+  ## Export graphs into a pdf
+  genelvl.layout <- grid.arrange(baseUMAP.geneLvl, baseUMAPplot,
+                                 cluster_resolution.fig.GeneLvl, elbow.plt.GeneLvl,
+                                 variable.feature.plot.GeneLvl,
+                                 nrow = 3, ncol = 2,
+                                 top=textGrob(paste0("SCRIPT 2 (QC) - ", output_prefix, " GENE LEVEL ANALYSES"),
+                                              gp = gpar(fontsize = 15)))
+  genelvlSummary.title <- paste0(output_prefix, "-geneLvl-Summary-script2.pdf")
+  ggsave(genelvlSummary.title, genelvl.layout, width = 15, height = 15)
+}
+
 
 ### Export the processed seurat object for use in further scripts
 rdsFilename <- paste0(output_prefix,"-QCed.rds")
-rdsFilename
 saveRDS(seurat.obj, file = rdsFilename)
+
+# If working with isoform level data, also export the corresponding genelevel seurat object
+if (tolower(feature_type) == "isoform" | tolower(feature_type) == "isoforms") {
+  rdsFilename <- paste0(output_prefix,"-geneLvl-QCed.rds")
+  saveRDS(seurat.obj.GeneLvl, file = rdsFilename)
+}
