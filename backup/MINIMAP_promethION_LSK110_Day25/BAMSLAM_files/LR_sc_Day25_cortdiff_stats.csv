@@ -1,0 +1,12 @@
+Sample,LR_sc_Day25_cortdiff
+Number of reads representing full-length transcripts,11897386
+Out of total number of reads,49208548
+Median alignment length of primary alignments,754
+Percentage of reads representing full-length transcripts,24.1774782706452
+Median coverage fraction of transcripts (primary alignments),0.452970297029703
+Median accuracy of primary alignments,95.0991831971995
+Number of reads with no secondary alignments,12001625
+Percentage of reads with no secondary alignments,24.3893093533262
+Number of unique transcripts identified,179255
+Median coverage fraction of all unique transcripts,0.308450704225352
+Median length of all unique transcripts identified,1363
