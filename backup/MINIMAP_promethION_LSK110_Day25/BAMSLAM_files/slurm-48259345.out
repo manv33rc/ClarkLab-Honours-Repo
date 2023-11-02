@@ -1,7 +1,0 @@
-Imported bam file
-Expanded CIGAR strings
-slurmstepd: error: Detected 2 oom-kill event(s) in StepId=48259345.batch. Some of your processes may have been killed by the cgroup out-of-memory handler.
-Jun 23 11:24:11 spartan-bm021 kernel: Task in /slurm/uid_16099/job_48259345/step_batch killed as a result of limit of /slurm/uid_16099/job_48259345/step_batch
-Jun 23 11:24:11 spartan-bm021 kernel: Memory cgroup stats for /slurm/uid_16099/job_48259345/step_batch: cache:0KB rss:102400000KB rss_huge:2048KB mapped_file:0KB swap:0KB inactive_anon:199680KB active_anon:102200320KB inactive_file:0KB active_file:0KB unevictable:0KB
-Jun 23 11:24:11 spartan-bm021 kernel: Task in /slurm/uid_16099/job_48259345/step_batch killed as a result of limit of /slurm/uid_16099/job_48259345/step_batch
-Jun 23 11:24:11 spartan-bm021 kernel: Memory cgroup stats for /slurm/uid_16099/job_48259345/step_batch: cache:0KB rss:102400000KB rss_huge:2048KB mapped_file:0KB swap:0KB inactive_anon:359424KB active_anon:102040576KB inactive_file:0KB active_file:0KB unevictable:0KB
